@@ -40,8 +40,8 @@ export default function LoginPage({ onLogin }) {
             <div style={{ fontSize:16,fontWeight:700,color:T.t1,marginBottom:4 }}>Sign In</div>
             <p style={{ fontSize:13,color:T.t2,marginBottom:22 }}>Enter your credentials to continue</p>
             {err&&<AlertBox type="err">{err}</AlertBox>}
-            <div style={{ position:"relative" }}>
-              <div style={{ position:"absolute",top:13,left:14,color:T.t3 }}><Mail size={16}/></div>
+            <div style={{ marginBottom:14 }}>
+              <Label>Email address</Label>
               <input value={email} onChange={e=>{setEmail(e.target.value);setErr("")}} placeholder="name@company.com" type="email" onKeyDown={e=>e.key==="Enter"&&attempt()}/>
             </div>
             <div style={{ marginBottom:24 }}>
