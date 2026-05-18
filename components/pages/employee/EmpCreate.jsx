@@ -26,20 +26,33 @@ export default function EmpCreate({ user, data, setData, nav, notify }) {
   function del(id){ setRows(r=>r.filter(x=>x.id!==id)) }
   function upd(id,k,v){ setRows(r=>r.map(x=>x.id===id?{...x,[k]:v}:x)) }
 
-  function submit() {
+  async function submit() {
     const parsed=rows.map(r=>({...r,w:parseFloat(r.w)||0,tv:r.uom==="timeline"?null:(parseFloat(r.tv)||0),td:r.td||null}))
     const e=validateSheet([...parsed,...sharedGs])
     if(e.length){ setErrs(e); return }
     setErrs([])
-    const sid=existing?existing.id:uid()
-    const newGoals=parsed.map(r=>({id:r.id,sid,area:r.area,title:r.title,uom:r.uom,tv:r.tv,td:r.td,w:r.w,shared:false,ro:false}))
-    if(!existing) {
-      setData(d=>({...d,sheets:[...d.sheets,{id:sid,eid:user.id,status:"submitted",locked:false,sub:new Date().toISOString(),apv:null,note:""}],goals:[...d.goals,...newGoals]}))
-    } else {
-      setData(d=>({...d,sheets:d.sheets.map(s=>s.id===sid?{...s,status:"submitted",sub:new Date().toISOString()}:s),goals:[...d.goals.filter(g=>g.sid!==sid||g.ro),...newGoals]}))
+
+    try {
+      const res = await fetch('/api/goals/sheet', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          employee_id: user.id,
+          goals: parsed
+        })
+      })
+      const result = await res.json()
+      if (!res.ok) throw new Error(result.error || 'Failed to submit')
+
+      // Refetch global state and navigate
+      if (typeof window !== 'undefined' && window.refetchData) {
+        await window.refetchData()
+      }
+      notify("Goal sheet submitted for manager approval ✓", "success")
+      nav("e-goals")
+    } catch (err) {
+      notify(err.message, "error")
     }
-    notify("Goal sheet submitted for manager approval ✓","success")
-    nav("e-goals")
   }
 
   return (

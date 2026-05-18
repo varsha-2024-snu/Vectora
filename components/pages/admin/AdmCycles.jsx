@@ -16,12 +16,23 @@ export default function AdmCycles({ data, setData, notify }) {
               <div style={{ fontSize:14,fontWeight:700,color:T.t1,marginBottom:3 }}>{c.label}</div>
               <div style={{ fontSize:12,color:T.t2 }}>{fmtD(c.open)} – {fmtD(c.close)}</div>
             </div>
-            {c.on
+            {c.active
               ?<Chip label="Force-Open ✓" color={T.green}/>
               :<Chip label="Closed" color={T.t2} size="xs"/>}
-            <button onClick={()=>{ setData(d=>({...d,cycles:d.cycles.map(x=>x.id===c.id?{...x,on:!x.on}:x)})); notify("Cycle updated","success") }}
-              style={{ width:44,height:24,borderRadius:12,background:c.on?T.amber:"#2A2A30",border:"none",cursor:"pointer",position:"relative",padding:0,transition:"background .2s",flexShrink:0 }}>
-              <div style={{ width:18,height:18,borderRadius:"50%",background:"white",position:"absolute",top:3,left:c.on?23:3,transition:"left .2s",boxShadow:"0 1px 4px rgba(0,0,0,.4)" }}/>
+            <button onClick={async ()=>{ 
+              try {
+                const res = await fetch('/api/admin/cycles', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ cycle_id: c.id, is_active: !c.active })
+                })
+                if (!res.ok) throw new Error('Failed to update cycle')
+                if (typeof window !== 'undefined' && window.refetchData) await window.refetchData()
+                notify("Cycle updated","success")
+              } catch(err) { notify(err.message,"error") }
+            }}
+              style={{ width:44,height:24,borderRadius:12,background:c.active?T.amber:"#2A2A30",border:"none",cursor:"pointer",position:"relative",padding:0,transition:"background .2s",flexShrink:0 }}>
+              <div style={{ width:18,height:18,borderRadius:"50%",background:"white",position:"absolute",top:3,left:c.active?23:3,transition:"left .2s",boxShadow:"0 1px 4px rgba(0,0,0,.4)" }}/>
             </button>
           </div>
         ))}

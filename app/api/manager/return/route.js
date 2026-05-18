@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-
+import { supabaseAdmin } from '@/lib/supabase'
 // POST /api/manager/return — Return sheet for rework
 export async function POST(request) {
   try {
@@ -16,14 +16,17 @@ export async function POST(request) {
       )
     }
 
-    // When Supabase is configured:
-    // 1. UPDATE goal_sheets SET status='returned', manager_comment=comment
-    // 2. Optionally send email via Resend
-    return NextResponse.json({
-      success: true,
-      message: 'Sheet returned with feedback',
-    })
+    // Update goal_sheets SET status='returned', manager_comment=comment
+    const { error: sheetErr } = await supabaseAdmin
+      .from('goal_sheets')
+      .update({ status: 'returned', manager_comment: comment })
+      .eq('id', sheet_id)
+
+    if (sheetErr) throw sheetErr
+
+    return NextResponse.json({ success: true, message: 'Sheet returned with feedback' })
   } catch (err) {
+    console.error('Return API Error:', err)
     return NextResponse.json({ error: err.message }, { status: 500 })
   }
 }

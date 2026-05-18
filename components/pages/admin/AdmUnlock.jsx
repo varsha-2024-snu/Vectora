@@ -12,17 +12,26 @@ export default function AdmUnlock({ data, setData, notify }) {
   const [why,setWhy]=useState("")
   const filtered=USERS.filter(u=>u.role==="employee"&&(u.name.toLowerCase().includes(q.toLowerCase())||u.email.includes(q)))
 
-  function unlock() {
+  async function unlock() {
     if(!why.trim()){ notify("Reason required","error"); return }
     const sh=data.sheets.find(s=>s.eid===sel.id)
     if(!sh?.locked){ notify("Sheet is not currently locked","error"); return }
-    setData(d=>({
-      ...d,
-      sheets:d.sheets.map(s=>s.id===sh.id?{...s,locked:false,status:"submitted"}:s),
-      audit:[{id:uid(),type:"goal_sheet",eid:sh.id,by:"a1",field:"locked",old:"true",nw:"false",act:"unlock",at:new Date().toISOString()},...d.audit]
-    }))
-    notify(`Sheet unlocked for ${sel.name}. Audit entry created ✓`,"success")
-    setSel(null); setWhy(""); setQ("")
+
+    try {
+      const res = await fetch('/api/admin/unlock', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sheet_id: sh.id, reason: why, admin_id: 'a1' }) // Assuming 'a1' for demo admin, or pass from user object if available
+      })
+      const result = await res.json()
+      if (!res.ok) throw new Error(result.error || 'Failed to unlock')
+
+      if (typeof window !== 'undefined' && window.refetchData) await window.refetchData()
+      notify(`Sheet unlocked for ${sel.name}. Audit entry created ✓`,"success")
+      setSel(null); setWhy(""); setQ("")
+    } catch (err) {
+      notify(err.message, "error")
+    }
   }
 
   return (

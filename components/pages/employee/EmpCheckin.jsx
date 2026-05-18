@@ -22,18 +22,38 @@ export default function EmpCheckin({ user, data, setData, notify }) {
     const cur=getA(gid)||{gid,q,val:null,date:null,st:"not_started",sc:null}
     setLocal(l=>({...l,[k]:{...cur,[field]:val}}))
   }
-  function save() {
+  async function save() {
     if(!windowOn){ notify("No active check-in window. Ask Admin to open one.","error"); return }
-    const saves=Object.values(local).filter(a=>a.gid)
-    const next=saves.map(a=>{
-      const g=gs.find(x=>x.id===a.gid)
-      if(!g||g.ro) return null
-      const sc=calcScore(g,a.val!=null?parseFloat(a.val):null,a.date)
-      return {id:uid(),gid:a.gid,q,val:a.val!=null?parseFloat(a.val):null,date:a.date||null,st:a.st||"not_started",sc}
-    }).filter(Boolean)
-    setData(d=>({...d,ach:[...d.ach.filter(a=>!next.find(n=>n.gid===a.gid&&n.q===q)),...next]}))
-    setLocal({})
-    notify("Achievements saved for "+q.toUpperCase()+" ✓","success")
+    try {
+      const promises = gs.map(g => {
+        const up = local[`${g.id}-${q}`]
+        if (!up) return Promise.resolve()
+        
+        return fetch('/api/achievements', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            goal_id: g.id,
+            quarter: q,
+            actual_value: g.uom === 'timeline' ? null : parseFloat(up.val),
+            actual_date: g.uom === 'timeline' ? up.date : null,
+            status: up.st,
+            progress_score: calcScore(g, up.val, up.date)
+          })
+        }).then(res => {
+          if (!res.ok) throw new Error(`Failed to save goal ${g.id}`)
+          return res.json()
+        })
+      })
+
+      await Promise.all(promises)
+      if (typeof window !== 'undefined' && window.refetchData) await window.refetchData()
+      
+      notify(`Q${q.toUpperCase()} updates saved ✓`, "success")
+      setLocal({})
+    } catch (err) {
+      notify(err.message, "error")
+    }
   }
 
   const comment=data.comments.find(c=>c.sid===sh?.id&&c.q===q)

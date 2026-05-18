@@ -1,16 +1,19 @@
-# React + Vite
+# Vectora — Goal Intelligence Platform
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Vectora is a robust, cloud-native application for goal tracking, check-ins, and performance management. It transitions from a local-state prototype to true end-to-end data persistence using Supabase.
 
-Currently, two official plugins are available:
+## Architecture & Infrastructure
+- **Frontend**: Next.js (React)
+- **Backend/Database**: Supabase (PostgreSQL)
+- **Deployment**: Vercel
+- **Infrastructure Cost**: $0 (Utilizing Supabase and Vercel free tiers)
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Authentication Strategy (Rule 5.1.4 Exception)
+As per the initial business requirements, Azure AD SSO was considered for enterprise authentication. However, due to the lack of an available Azure AD tenant, this requirement (Rule 5.1.4) has been formally excluded from this deployment. 
+For demonstration and testing purposes, we utilize the "Quick Access - Demo Roles" on the login page while persisting all application data securely in Supabase.
 
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## Setup
+1. Clone the repository.
+2. Run `npm install`.
+3. Set up the `.env.local` variables with your Supabase credentials.
+4. Run `npm run dev` to start the local development server.

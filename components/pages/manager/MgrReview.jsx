@@ -13,22 +13,55 @@ export default function MgrReview({ user, data, setData, nav, sel, notify }) {
   const tot=eg.reduce((s,g)=>s+(parseFloat(g.w)||0),0)
   function upd(id,k,v){ setEg(gs=>gs.map(g=>g.id===id?{...g,[k]:v}:g)) }
 
-  function approve() {
-    if(sh?.status!=="submitted"){ notify("Only submitted sheets can be approved","error"); return }
-    setData(d=>({
-      ...d,
-      sheets:d.sheets.map(s=>s.id===sh.id?{...s,status:"approved",locked:true,apv:new Date().toISOString()}:s),
-      goals:d.goals.map(g=>g.sid===sh.id?eg.find(e=>e.id===g.id)||g:g),
-      audit:[{id:uid(),type:"goal_sheet",eid:sh.id,by:user.id,field:"status → locked",old:"submitted / false",nw:"approved / true",act:"approve",at:new Date().toISOString()},...d.audit]
-    }))
-    notify("Sheet approved and locked ✓","success")
-    nav("m-team")
+  async function approve() {
+    const totalWeight = eg.reduce((s, g) => s + (parseFloat(g.w) || 0), 0)
+    if (Math.abs(totalWeight - 100) > 0.01) {
+      notify(`Total weightage is ${totalWeight}%. It must be exactly 100% to approve.`, "error")
+      return
+    }
+
+    try {
+      const res = await fetch('/api/manager/approve', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sheet_id: sh.id,
+          manager_id: user.id,
+          action: 'approve',
+          goals: eg
+        })
+      })
+      const result = await res.json()
+      if (!res.ok) throw new Error(result.error || 'Failed to approve')
+
+      if (typeof window !== 'undefined' && window.refetchData) await window.refetchData()
+      notify("Sheet approved and locked for Q1", "success")
+      nav("m-team")
+    } catch (err) {
+      notify(err.message, "error")
+    }
   }
-  function returnSh() {
-    if(!note.trim()){ notify("Add a comment before returning","error"); return }
-    setData(d=>({...d,sheets:d.sheets.map(s=>s.id===sh.id?{...s,status:"returned",note}:s)}))
-    notify("Sheet returned with feedback","success")
-    nav("m-team")
+
+  async function ret() {
+    if (!note) { notify("Please add a comment before returning", "error"); return }
+    try {
+      const res = await fetch('/api/manager/return', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sheet_id: sh.id,
+          comment: note
+        })
+      })
+      const result = await res.json()
+      if (!res.ok) throw new Error(result.error || 'Failed to return')
+
+      if (typeof window !== 'undefined' && window.refetchData) await window.refetchData()
+      notify("Sheet returned to employee", "success")
+      nav("m-team")
+    } catch (err) {
+      notify(err.message, "error")
+    }
   }
   if(!sh) return <EmptyState title="Sheet not found" desc="Go back and select a valid team member." cta={<Btn onClick={()=>nav("m-team")}><ArrowLeft size={12}/>&nbsp;Back</Btn>}/>
   return (
@@ -104,7 +137,7 @@ export default function MgrReview({ user, data, setData, nav, sel, notify }) {
               <Card pad={18} style={{ border:`1px solid ${"#F59E0B"}28` }}>
                 <div style={{ fontSize:14,fontWeight:700,color:"#F59E0B",marginBottom:8 }}>Return for Rework</div>
                 <textarea value={note} onChange={e=>setNote(e.target.value)} placeholder="Explain what needs to change..." style={{ minHeight:90,resize:"vertical",marginBottom:12 }}/>
-                <Btn variant="warning" full onClick={returnSh} disabled={!note.trim()} style={{ justifyContent:"center" }}>
+                <Btn variant="warning" full onClick={ret} disabled={!note.trim()} style={{ justifyContent:"center" }}>
                   <AlertTriangle size={13}/>&nbsp;Return with Feedback
                 </Btn>
               </Card>

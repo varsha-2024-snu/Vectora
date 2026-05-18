@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-
+import { supabaseAdmin } from '@/lib/supabase'
 // POST /api/goals/sheet — Create new goal sheet
 export async function POST(request) {
   try {
@@ -52,16 +52,59 @@ export async function POST(request) {
       }
     }
 
-    // When Supabase is configured, this would:
-    // 1. Create goal_sheet row
-    // 2. Create goal rows
-    // 3. Set status to 'submitted'
-    // For now, return success (mutations happen client-side via AppContext)
-    return NextResponse.json({
-      success: true,
-      message: 'Goal sheet validated successfully. Ready for Supabase persistence.',
-    })
+    // 1. Check if sheet already exists
+    const { data: existingSheet } = await supabaseAdmin
+      .from('goal_sheets')
+      .select('id')
+      .eq('employee_id', employee_id)
+      .eq('cycle_id', 'cycle_fy25_26')
+      .single()
+
+    let sheetId = existingSheet?.id
+
+    if (!existingSheet) {
+      // Create new sheet
+      const { data: newSheet, error: sheetErr } = await supabaseAdmin
+        .from('goal_sheets')
+        .insert({ employee_id, cycle_id: 'cycle_fy25_26', status: 'submitted' })
+        .select('id')
+        .single()
+      if (sheetErr) throw sheetErr
+      sheetId = newSheet.id
+    } else {
+      // Update existing sheet status to submitted
+      await supabaseAdmin
+        .from('goal_sheets')
+        .update({ status: 'submitted' })
+        .eq('id', sheetId)
+
+      // Delete existing non-shared goals to replace them
+      await supabaseAdmin
+        .from('goals')
+        .delete()
+        .eq('sheet_id', sheetId)
+        .eq('is_shared', false)
+    }
+
+    // Insert new goals
+    const dbGoals = goals.map(g => ({
+      sheet_id: sheetId,
+      thrust_area: g.area,
+      title: g.title,
+      uom_type: g.uom,
+      target_value: g.tv,
+      target_date: g.td,
+      weightage: parseFloat(g.w),
+      is_shared: false,
+      is_readonly: false
+    }))
+
+    const { error: goalsErr } = await supabaseAdmin.from('goals').insert(dbGoals)
+    if (goalsErr) throw goalsErr
+
+    return NextResponse.json({ success: true, sheetId })
   } catch (err) {
+    console.error('Goal sheet API error:', err)
     return NextResponse.json({ error: err.message }, { status: 500 })
   }
 }

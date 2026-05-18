@@ -14,10 +14,19 @@ export default function MgrCheckin({ user, data, setData, nav, sel, notify }) {
   const [txt,setTxt]=useState("")
   const existing=data.comments.find(c=>c.sid===sh?.id&&c.q===q&&c.mid===user.id)
 
-  function save() {
+  async function save() {
     if(!txt.trim()){ notify("Enter a comment first","error"); return }
-    setData(d=>({...d,comments:[...d.comments.filter(c=>!(c.sid===sh.id&&c.q===q&&c.mid===user.id)),{id:uid(),sid:sh.id,q,mid:user.id,text:txt,date:new Date().toISOString()}]}))
-    setTxt(""); notify("Check-in comment saved ✓","success")
+    try {
+      const res = await fetch('/api/comments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sheet_id: sh.id, quarter: q, manager_id: user.id, comment_text: txt })
+      })
+      const result = await res.json()
+      if (!res.ok) throw new Error(result.error || 'Failed to save comment')
+      if (typeof window !== 'undefined' && window.refetchData) await window.refetchData()
+      setTxt(""); notify("Check-in comment saved ✓","success")
+    } catch (err) { notify(err.message, "error") }
   }
   if(!sh) return <EmptyState title="Sheet not found" cta={<Btn onClick={()=>nav("m-team")}><ArrowLeft size={12}/>&nbsp;Back</Btn>}/>
   return (

@@ -1,7 +1,7 @@
 'use client'
-import { createContext, useContext, useState, useCallback } from 'react'
+import { createContext, useContext, useState, useCallback, useEffect } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
-import { SEED, USERS } from '@/lib/seed'
+import { USERS } from '@/lib/seed'
 
 const AppContext = createContext(null)
 
@@ -36,16 +36,29 @@ export function AppProvider({ children }) {
   const [user, setUser] = useState(null)
   const [sel, setSel] = useState(null)
   const [data, setData] = useState({
-    cycles:   SEED.cycles,
-    sheets:   SEED.sheets,
-    goals:    SEED.goals,
-    ach:      SEED.ach,
-    comments: SEED.comments,
-    audit:    SEED.audit,
-    escR:     SEED.escR,
-    escE:     SEED.escE,
+    cycles: [], sheets: [], goals: [], ach: [], comments: [], audit: [], escR: [], escE: []
   })
+  const [loading, setLoading] = useState(true)
   const [toast, setToast] = useState(null)
+
+  const refetchData = useCallback(async () => {
+    try {
+      const res = await fetch('/api/fetch-all')
+      if (res.ok) {
+        const json = await res.json()
+        setData(json)
+      }
+    } catch (e) {
+      console.error('Failed to fetch data', e)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    refetchData()
+    if (typeof window !== 'undefined') window.refetchData = refetchData
+  }, [refetchData])
 
   // Navigation helper — accepts old page codes AND new paths
   const nav = useCallback((p, id = null) => {
@@ -78,9 +91,9 @@ export function AppProvider({ children }) {
   return (
     <AppContext.Provider value={{
       user, setUser, data, setData, toast, setToast,
-      sel, setSel, nav, notify, login, logout, page,
+      sel, setSel, nav, notify, login, logout, page, refetchData
     }}>
-      {children}
+      {loading ? <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>Loading data...</div> : children}
     </AppContext.Provider>
   )
 }
