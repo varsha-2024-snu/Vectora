@@ -9,7 +9,7 @@ export async function POST(request) {
     const { employee_id, goals } = body
 
     // Validate weightage sums to 100
-    const totalWeight = goals.reduce((sum, g) => sum + (parseFloat(g.weightage) || 0), 0)
+    const totalWeight = goals.reduce((sum, g) => sum + (parseFloat(g.w) || 0), 0)
     if (Math.abs(totalWeight - 100) > 0.01) {
       return NextResponse.json(
         { error: `Total weightage is ${totalWeight.toFixed(1)}% — must equal exactly 100%` },
@@ -28,7 +28,7 @@ export async function POST(request) {
     // Validate each goal
     for (let i = 0; i < goals.length; i++) {
       const g = goals[i]
-      if ((parseFloat(g.weightage) || 0) < 10) {
+      if ((parseFloat(g.w) || 0) < 10) {
         return NextResponse.json(
           { error: `Goal ${i + 1}: minimum weightage is 10% (RULE-V2)` },
           { status: 400 }
