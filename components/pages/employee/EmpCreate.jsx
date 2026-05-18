@@ -38,6 +38,11 @@ export default function EmpCreate({ user, data, setData, nav, notify }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           employee_id: user.id,
+          employee_email: user.email,
+          employee_name: user.name,
+          employee_role: user.role,
+          employee_department: user.dept,
+          employee_manager_id: user.mgr,
           goals: parsed
         })
       })

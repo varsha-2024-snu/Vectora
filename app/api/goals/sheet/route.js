@@ -2,25 +2,96 @@ import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
 import { sendEmailNotification } from '@/lib/email'
 import { sendTeamsNotification } from '@/lib/teams'
+
+function deriveInitials(nameOrEmail) {
+  if (!nameOrEmail) return 'U'
+  const parts = String(nameOrEmail)
+    .replace(/@.*/, '')
+    .replace(/[._-]+/g, ' ')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+
+  if (!parts.length) return 'U'
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase()
+  return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase()
+}
+
+function isUuidLike(value) {
+  return typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
+}
+
+async function resolveEmployeeProfile({ employee_id, employee_email, employee_name, employee_role, employee_department, employee_manager_id }) {
+  const lookupOrder = []
+  if (isUuidLike(employee_id)) {
+    lookupOrder.push(`id.eq.${employee_id}`)
+    lookupOrder.push(`auth_id.eq.${employee_id}`)
+  }
+  if (employee_email) {
+    lookupOrder.push(`email.eq.${employee_email}`)
+  }
+
+  if (lookupOrder.length > 0) {
+    const { data: existing, error: existingErr } = await supabaseAdmin
+      .from('users')
+      .select('id, full_name, email, manager_id, role, department, auth_id')
+      .or(lookupOrder.join(','))
+      .limit(1)
+      .maybeSingle()
+
+    if (existingErr) throw existingErr
+    if (existing) {
+      return existing
+    }
+  }
+
+  if (!employee_email) {
+    return null
+  }
+
+  const email = employee_email
+
+  const fullName =
+    employee_name ||
+    email.split('@')[0].replace(/[._-]+/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+
+  const role = employee_role || 'employee'
+  const department = employee_department || ''
+  const managerId = employee_manager_id || null
+
+  const { data: created, error: createErr } = await supabaseAdmin
+    .from('users')
+    .insert({
+      email,
+      full_name: fullName,
+      initials: deriveInitials(fullName),
+      role,
+      department,
+      manager_id: managerId,
+    })
+    .select('id, full_name, email, manager_id, role, department, auth_id')
+    .single()
+
+  if (createErr) throw createErr
+  return created
+}
 // POST /api/goals/sheet — Create new goal sheet
 export async function POST(request) {
   try {
     const body = await request.json()
-    const { employee_id, goals } = body
+    const { employee_id, employee_email, employee_name, employee_role, employee_department, employee_manager_id, goals } = body
 
-    if (!employee_id) {
-      return NextResponse.json({ error: 'Employee ID is required' }, { status: 400 })
+    if (!Array.isArray(goals) || goals.length === 0) {
+      return NextResponse.json({ error: 'At least one goal is required' }, { status: 400 })
     }
 
-    const { data: employee, error: employeeErr } = await supabaseAdmin
-      .from('users')
-      .select('id, full_name, manager_id')
-      .or(`id.eq.${employee_id},auth_id.eq.${employee_id}`)
-      .single()
+    const employee = await resolveEmployeeProfile(
+      { employee_id, employee_email, employee_name, employee_role, employee_department, employee_manager_id },
+    )
 
-    if (employeeErr || !employee) {
+    if (!employee) {
       return NextResponse.json(
-        { error: 'Employee not found in users table. Goal sheets must reference a valid user record.' },
+        { error: 'Employee profile not found. Sign in again or ask an admin to create your user record.' },
         { status: 400 }
       )
     }
