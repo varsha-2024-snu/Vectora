@@ -8,6 +8,25 @@ export async function POST(request) {
     const body = await request.json()
     const { employee_id, goals } = body
 
+    if (!employee_id) {
+      return NextResponse.json({ error: 'Employee ID is required' }, { status: 400 })
+    }
+
+    const { data: employee, error: employeeErr } = await supabaseAdmin
+      .from('users')
+      .select('id, full_name, manager_id')
+      .or(`id.eq.${employee_id},auth_id.eq.${employee_id}`)
+      .single()
+
+    if (employeeErr || !employee) {
+      return NextResponse.json(
+        { error: 'Employee not found in users table. Goal sheets must reference a valid user record.' },
+        { status: 400 }
+      )
+    }
+
+    const resolvedEmployeeId = employee.id
+
     // Validate weightage sums to 100
     const totalWeight = goals.reduce((sum, g) => sum + (parseFloat(g.w) || 0), 0)
     if (Math.abs(totalWeight - 100) > 0.01) {
@@ -63,7 +82,7 @@ export async function POST(request) {
     const { data: existingSheet } = await supabaseAdmin
       .from('goal_sheets')
       .select('id')
-      .eq('employee_id', employee_id)
+      .eq('employee_id', resolvedEmployeeId)
       .eq('cycle_id', cycle_id)
       .single()
 
@@ -73,7 +92,7 @@ export async function POST(request) {
       // Create new sheet
       const { data: newSheet, error: sheetErr } = await supabaseAdmin
         .from('goal_sheets')
-        .insert({ employee_id, cycle_id: cycle_id, status: 'submitted' })
+        .insert({ employee_id: resolvedEmployeeId, cycle_id: cycle_id, status: 'submitted' })
         .select('id')
         .single()
       if (sheetErr) throw sheetErr
@@ -110,12 +129,11 @@ export async function POST(request) {
     if (goalsErr) throw goalsErr
 
     // Notification Logic
-    const { data: emp } = await supabaseAdmin.from('users').select('full_name, manager_id').eq('id', employee_id).single()
-    if (emp && emp.manager_id) {
-      const { data: mgr } = await supabaseAdmin.from('users').select('full_name, email').eq('id', emp.manager_id).single()
+    if (employee.manager_id) {
+      const { data: mgr } = await supabaseAdmin.from('users').select('full_name, email').eq('id', employee.manager_id).single()
       if (mgr) {
-        const title = `New Goal Sheet Submitted by ${emp.full_name}`
-        const msg = `${emp.full_name} has submitted their FY2025-26 goals for your approval.`
+        const title = `New Goal Sheet Submitted by ${employee.full_name}`
+        const msg = `${employee.full_name} has submitted their FY2025-26 goals for your approval.`
         const link = `http://localhost:3000/manager/dashboard`
         
         // Fire asynchronously (don't block the request)
