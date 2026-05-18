@@ -40,7 +40,6 @@ export default function Sidebar({ user, page, nav, logout }) {
           </div>
           <div>
             <div style={{ fontSize:16,fontWeight:800,color:T.t1,letterSpacing:-.4,lineHeight:1 }}>Vectora</div>
-            <div style={{ fontSize:9.5,fontWeight:500,color:T.t2,letterSpacing:.5,marginTop:2 }}>BY ATOMBERG</div>
           </div>
         </div>
       </div>

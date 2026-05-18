@@ -28,11 +28,11 @@ export default function LoginPage({ onLogin }) {
             </div>
             <div style={{ textAlign:"left" }}>
               <div style={{ fontSize:26,fontWeight:800,color:T.t1,letterSpacing:-.6,lineHeight:1 }}>Vectora</div>
-              <div style={{ fontSize:11,fontWeight:500,color:T.t2,letterSpacing:.8,marginTop:2 }}>GOAL INTELLIGENCE PLATFORM · BY ATOMBERG</div>
+              <div style={{ fontSize:11,fontWeight:500,color:T.t2,letterSpacing:.8,marginTop:2 }}>GOAL INTELLIGENCE PLATFORM</div>
             </div>
           </div>
-          <p style={{ fontSize:14,color:T.t2,maxWidth:420,margin:"0 auto",lineHeight:1.7 }}>
-            Set goals, track achievement, and build a culture of performance. Designed for Atomberg's operational scale.
+          <p style={{ fontSize:14,color:T.t2,lineHeight:1.6,marginBottom:32 }}>
+            Set goals, track achievement, and build a culture of performance across your organization.
           </p>
         </div>
         <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:28,alignItems:"start" }}>
@@ -40,9 +40,9 @@ export default function LoginPage({ onLogin }) {
             <div style={{ fontSize:16,fontWeight:700,color:T.t1,marginBottom:4 }}>Sign In</div>
             <p style={{ fontSize:13,color:T.t2,marginBottom:22 }}>Enter your credentials to continue</p>
             {err&&<AlertBox type="err">{err}</AlertBox>}
-            <div style={{ marginBottom:14 }}>
-              <Label>Email address</Label>
-              <input value={email} onChange={e=>{setEmail(e.target.value);setErr("")}} placeholder="name@atomberg.com" type="email" onKeyDown={e=>e.key==="Enter"&&attempt()}/>
+            <div style={{ position:"relative" }}>
+              <div style={{ position:"absolute",top:13,left:14,color:T.t3 }}><Mail size={16}/></div>
+              <input value={email} onChange={e=>{setEmail(e.target.value);setErr("")}} placeholder="name@company.com" type="email" onKeyDown={e=>e.key==="Enter"&&attempt()}/>
             </div>
             <div style={{ marginBottom:24 }}>
               <Label>Password</Label>

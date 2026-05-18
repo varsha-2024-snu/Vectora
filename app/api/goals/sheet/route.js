@@ -54,12 +54,17 @@ export async function POST(request) {
       }
     }
 
-    // 1. Check if sheet already exists
+    // 1. Fetch active cycle
+    const { data: activeCycle } = await supabaseAdmin.from('cycles').select('id').eq('is_active', true).single()
+    if (!activeCycle) return NextResponse.json({ error: 'No active cycle found to submit goals' }, { status: 400 })
+    const cycle_id = activeCycle.id
+
+    // 2. Check if sheet already exists
     const { data: existingSheet } = await supabaseAdmin
       .from('goal_sheets')
       .select('id')
       .eq('employee_id', employee_id)
-      .eq('cycle_id', 'cycle_fy25_26')
+      .eq('cycle_id', cycle_id)
       .single()
 
     let sheetId = existingSheet?.id
@@ -68,7 +73,7 @@ export async function POST(request) {
       // Create new sheet
       const { data: newSheet, error: sheetErr } = await supabaseAdmin
         .from('goal_sheets')
-        .insert({ employee_id, cycle_id: 'cycle_fy25_26', status: 'submitted' })
+        .insert({ employee_id, cycle_id: cycle_id, status: 'submitted' })
         .select('id')
         .single()
       if (sheetErr) throw sheetErr
