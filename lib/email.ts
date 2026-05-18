@@ -1,6 +1,7 @@
 import { Resend } from 'resend';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Provide a dummy fallback key so the build doesn't crash if the env var is missing
+const resend = new Resend(process.env.RESEND_API_KEY || 're_dummy_key_to_pass_build');
 
 export async function sendEmailNotification(to: string, subject: string, html: string) {
   if (!process.env.RESEND_API_KEY || process.env.RESEND_API_KEY === 'your-resend-api-key') {
