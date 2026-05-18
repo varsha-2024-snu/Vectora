@@ -5,7 +5,7 @@
 Vectora is **a fully functional, end-to-end goal setting and tracking platform** designed for enterprise organizations. It eliminates fragmentation, opacity, and manual effort in goal management by delivering a seamless workflow for employees, managers, and HR — from goal creation through quarterly check-ins to audit-ready governance.
 
 **Live Demo**: https://vectora-jqvp-git-main-varshapillaim-5639s-projects.vercel.app/login
-**GitHub**: https://github.com/varsha-2024-snu/Vectora
+
 
 ---
 
