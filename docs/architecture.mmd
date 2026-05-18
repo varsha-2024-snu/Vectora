@@ -1,0 +1,105 @@
+graph TD
+  subgraph Users[User Roles]
+    U_EMP(Employee)
+    U_MGR(Manager)
+    U_ADM(Admin)
+  end
+
+  subgraph Frontend[Next.js Frontend]
+    NEXT(Next.js 15+ (App Router)\nReact 19 + Turbopack)
+    UI(Custom UI components: Card, DataTable, Button, Badge)
+    AUTH_CLIENT(Supabase Client (auth) — browser)
+  end
+
+  subgraph Backend[Vercel Serverless / API Routes]
+    API_API("app/api/* routes — Node.js serverless functions")
+    SUPABASE_ADMIN(Supabase Service-Role Client (server))
+    EMAIL_LIB(lib/email.ts - Resend SDK)
+    TEAMS_LIB(lib/teams.ts - Webhook)
+  end
+
+  subgraph Database[Supabase / PostgreSQL]
+    PG[(PostgreSQL)]
+    TABLES[Tables: users, goal_sheets, goals, achievements, audit_logs, escalation_events, checkin_comments]
+    RLS[RLS Policies + Service Role for server]
+    INDEXES[Index: audit_logs(entity_type, entity_id, changed_by, changed_at DESC)]
+  end
+
+  subgraph Infra[CI/CD & Hosting]
+    GIT(GitHub Repository)
+    VERCEL(Vercel — Auto deploy on push, CDN)
+    ENV(Env: NEXT_PUBLIC_APP_URL, RESEND_API_KEY, TEAMS_WEBHOOK_URL, SUPABASE_* )
+  end
+
+  subgraph Integrations[External Services]
+    RESEND(Resend Email Service)
+    TEAMS(Microsoft Teams Incoming Webhook)
+  end
+
+  %% user flows
+  U_EMP -->|HTTPS, JWT| NEXT
+  U_MGR -->|HTTPS, JWT| NEXT
+  U_ADM -->|HTTPS, JWT| NEXT
+
+  %% frontend internals
+  NEXT --> UI
+  NEXT --> AUTH_CLIENT
+  AUTH_CLIENT -->|supabase.auth| SUPABASE_ADMIN:::note
+  NEXT -->|calls| API_API
+
+  %% backend to db
+  API_API -->|service-role RPC / queries| SUPABASE_ADMIN
+  SUPABASE_ADMIN -->|SQL (ACID txns)| PG
+  PG --> TABLES
+  PG --> RLS
+  PG --> INDEXES
+
+  %% notification paths
+  API_API -->|sendEmailNotification()| EMAIL_LIB
+  EMAIL_LIB -->|HTTP API (Resend)| RESEND
+  API_API -->|sendTeamsNotification()| TEAMS_LIB
+  TEAMS_LIB -->|POST JSON| TEAMS
+
+  %% infra links
+  GIT -->|push| VERCEL
+  VERCEL -->|deploy| NEXT
+  VERCEL -->|sets env| ENV
+  SUPABASE_ADMIN -->|uses| ENV
+  EMAIL_LIB -->|uses| ENV
+  TEAMS_LIB -->|uses| ENV
+
+  %% notes
+  classDef note fill:#f9f,stroke:#333,stroke-width:1px;
+  class SUPABASE_ADMIN note;
+
+  click GIT "https://github.com/varsha-2024-snu/Vectora" "GitHub Repository"
+  click VERCEL "https://vercel.com" "Vercel"
+
+  style PG stroke:#0b5,stroke-width:2px
+  style RESEND fill:#ffe07f
+  style TEAMS fill:#b6d7ff
+
+  %% Detailed components callouts
+  subgraph Details[Key Components & Dataflows]
+    A1[Auth: Supabase Auth (JWT)\n- SignIn/SignUp, session tokens\n- Client SDK for frontend] --> AUTH_CLIENT
+    A2[API: /api/goals/sheet, /api/manager/approve, /api/admin/unlock, /api/reports] --> API_API
+    A3[Email: lib/email.ts -> Resend SDK; simulation fallback when no key] --> EMAIL_LIB
+    A4[Teams: lib/teams.ts -> Webhook; simulation fallback when missing] --> TEAMS_LIB
+    A5[DB Constraints: FK (goal_sheets.employee_id -> users.id), UNIQUE constraints, triggers] --> TABLES
+    A6[Audit Logs: audit_logs table written on all state transitions] --> TABLES
+  end
+
+  Details -.-> API_API
+  Details -.-> PG
+
+  %% Legend
+  subgraph Legend[ ]
+    L1[(Client-side)]
+    L2[(Server-side)]
+    L3[(External)]
+  end
+
+  L1 --- NEXT
+  L2 --- API_API
+  L3 --- RESEND
+
