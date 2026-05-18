@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
+import { sendEmailNotification } from '@/lib/email'
+import { sendTeamsNotification } from '@/lib/teams'
 // POST /api/goals/sheet — Create new goal sheet
 export async function POST(request) {
   try {
@@ -101,6 +103,21 @@ export async function POST(request) {
 
     const { error: goalsErr } = await supabaseAdmin.from('goals').insert(dbGoals)
     if (goalsErr) throw goalsErr
+
+    // Notification Logic
+    const { data: emp } = await supabaseAdmin.from('users').select('full_name, manager_id').eq('id', employee_id).single()
+    if (emp && emp.manager_id) {
+      const { data: mgr } = await supabaseAdmin.from('users').select('full_name, email').eq('id', emp.manager_id).single()
+      if (mgr) {
+        const title = `New Goal Sheet Submitted by ${emp.full_name}`
+        const msg = `${emp.full_name} has submitted their FY2025-26 goals for your approval.`
+        const link = `http://localhost:3000/manager/dashboard`
+        
+        // Fire asynchronously (don't block the request)
+        sendEmailNotification(mgr.email, title, `<p>${msg}</p><a href="${link}">Review Goals</a>`).catch(console.error)
+        sendTeamsNotification(title, msg, "Review Goals", link).catch(console.error)
+      }
+    }
 
     return NextResponse.json({ success: true, sheetId })
   } catch (err) {

@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
+import { sendEmailNotification } from '@/lib/email'
+import { sendTeamsNotification } from '@/lib/teams'
 
 export async function POST(request) {
   try {
@@ -36,6 +38,20 @@ export async function POST(request) {
       .eq('id', sheet_id)
       
     if (sheetErr) throw sheetErr
+
+    // Notification Logic
+    const { data: sheet } = await supabaseAdmin.from('goal_sheets').select('employee_id').eq('id', sheet_id).single()
+    if (sheet) {
+      const { data: emp } = await supabaseAdmin.from('users').select('full_name, email').eq('id', sheet.employee_id).single()
+      if (emp) {
+        const title = "Goal Sheet Approved"
+        const msg = `Your FY2025-26 goal sheet has been approved and locked by your manager.`
+        const link = `http://localhost:3000/employee/goals`
+        
+        sendEmailNotification(emp.email, title, `<p>${msg}</p><a href="${link}">View Goals</a>`).catch(console.error)
+        sendTeamsNotification(title, msg, "View Goals", link).catch(console.error)
+      }
+    }
 
     return NextResponse.json({ success: true, message: 'Sheet approved and locked' })
   } catch (err) {

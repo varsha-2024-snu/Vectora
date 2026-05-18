@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
+import { sendEmailNotification } from '@/lib/email'
+import { sendTeamsNotification } from '@/lib/teams'
 // POST /api/manager/return — Return sheet for rework
 export async function POST(request) {
   try {
@@ -23,6 +25,20 @@ export async function POST(request) {
       .eq('id', sheet_id)
 
     if (sheetErr) throw sheetErr
+
+    // Notification Logic
+    const { data: sheet } = await supabaseAdmin.from('goal_sheets').select('employee_id').eq('id', sheet_id).single()
+    if (sheet) {
+      const { data: emp } = await supabaseAdmin.from('users').select('full_name, email').eq('id', sheet.employee_id).single()
+      if (emp) {
+        const title = "Goal Sheet Returned for Rework"
+        const msg = `Your manager returned your goal sheet with feedback: "${comment}"`
+        const link = `http://localhost:3000/employee/goals`
+        
+        sendEmailNotification(emp.email, title, `<p>${msg}</p><a href="${link}">Edit Goals</a>`).catch(console.error)
+        sendTeamsNotification(title, msg, "Edit Goals", link).catch(console.error)
+      }
+    }
 
     return NextResponse.json({ success: true, message: 'Sheet returned with feedback' })
   } catch (err) {

@@ -8,12 +8,28 @@ import { team } from '@/lib/utils';
 import { SectionTitle, Card } from '@/components/ui/BaseComponents';
 
 export default function AdmAnalytics({ data }) {
-  const qoq=[
-    { q:"Q1", Sales:75, Operations:60 },
-    { q:"Q2", Sales:null, Operations:null },
-    { q:"Q3", Sales:null, Operations:null },
-    { q:"Q4", Sales:null, Operations:null },
-  ]
+  // Aggregate QoQ performance from real data
+  const qoqData = { Q1: { Sales: null, Operations: null }, Q2: { Sales: null, Operations: null }, Q3: { Sales: null, Operations: null }, Q4: { Sales: null, Operations: null } }
+  
+  data.ach.forEach(a => {
+    if (a.sc != null) {
+      const g = data.goals.find(x => x.id === a.gid)
+      const sheet = data.sheets.find(s => s.id === g?.sid)
+      const u = USERS.find(user => user.id === sheet?.eid)
+      if (u && (u.dept === 'Sales' || u.dept === 'Operations')) {
+        const q = a.q.toUpperCase()
+        if (!qoqData[q][u.dept]) qoqData[q][u.dept] = { total: 0, count: 0 }
+        qoqData[q][u.dept].total += a.sc
+        qoqData[q][u.dept].count += 1
+      }
+    }
+  })
+
+  const qoq = ["Q1", "Q2", "Q3", "Q4"].map(q => ({
+    q,
+    Sales: qoqData[q].Sales ? Math.round(qoqData[q].Sales.total / qoqData[q].Sales.count) : null,
+    Operations: qoqData[q].Operations ? Math.round(qoqData[q].Operations.total / qoqData[q].Operations.count) : null,
+  }))
   const byArea  = data.goals.reduce((a,g)=>({...a,[g.area]:(a[g.area]||0)+1}),{})
   const byUom   = data.goals.reduce((a,g)=>({...a,[UOM_L[g.uom]]:(a[UOM_L[g.uom]]||0)+1}),{})
   const byStatus= data.ach.reduce((a,x)=>({...a,[x.st.replace("_"," ")]:(a[x.st.replace("_"," ")]||0)+1}),{})

@@ -7,22 +7,51 @@ import { uid, getU, fmtTs } from '@/lib/utils';
 import { SectionTitle, Card, Btn, Chip, EmptyState } from '@/components/ui/BaseComponents';
 
 export default function AdmEsc({ data, setData, notify }) {
-  function toggle(id) { setData(d=>({...d,escR:d.escR.map(r=>r.id===id?{...r,on:!r.on}:r)})); notify("Rule updated","success") }
-  function updDays(id,v) { setData(d=>({...d,escR:d.escR.map(r=>r.id===id?{...r,days:parseInt(v)||1}:r)})) }
-  function runCheck() {
-    const newE=[]
-    USERS.filter(u=>u.role==="employee").forEach(u=>{
-      const sh=data.sheets.find(s=>s.eid===u.id)
-      const r1=data.escR.find(r=>r.type==="submission_overdue"&&r.on)
-      if(r1&&(!sh||sh.status==="draft")) {
-        if(!data.escE.find(e=>e.rid===r1.id&&e.uid===u.id&&!e.done))
-          newE.push({id:uid(),rid:r1.id,uid:u.id,over:r1.days+2,at:new Date().toISOString(),done:false})
-      }
-    })
-    if(newE.length) { setData(d=>({...d,escE:[...d.escE,...newE]})); notify(`${newE.length} new escalation(s) flagged`,"warn") }
-    else notify("No new escalations found","success")
+  async function toggle(id) {
+    const rule = data.escR.find(r=>r.id===id)
+    try {
+      await fetch('/api/admin/escalations', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'update_rule', rule_id: id, updates: { is_active: !rule.on } })
+      })
+      if (typeof window !== 'undefined' && window.refetchData) await window.refetchData()
+      notify("Rule updated", "success")
+    } catch(err) {}
   }
-  function resolve(id) { setData(d=>({...d,escE:d.escE.map(e=>e.id===id?{...e,done:true}:e)})); notify("Resolved ✓","success") }
+  
+  async function updDays(id, v) {
+    try {
+      await fetch('/api/admin/escalations', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'update_rule', rule_id: id, updates: { threshold_days: parseInt(v)||1 } })
+      })
+      if (typeof window !== 'undefined' && window.refetchData) await window.refetchData()
+    } catch(err) {}
+  }
+  
+  async function runCheck() {
+    try {
+      const res = await fetch('/api/admin/escalations', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'run_check' })
+      })
+      const result = await res.json()
+      if (typeof window !== 'undefined' && window.refetchData) await window.refetchData()
+      if (result.newEscalations > 0) notify(`${result.newEscalations} new escalation(s) flagged`, "warn")
+      else notify("No new escalations found", "success")
+    } catch(err) { notify(err.message, "error") }
+  }
+  
+  async function resolve(id) {
+    try {
+      await fetch('/api/admin/escalations', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'resolve_event', event_id: id })
+      })
+      if (typeof window !== 'undefined' && window.refetchData) await window.refetchData()
+      notify("Resolved ✓", "success")
+    } catch(err) {}
+  }
 
   return (
     <div className="page-enter">
